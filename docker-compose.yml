@@ -1,7 +1,7 @@
 version: "3"
 services:
   postgres:
-    image: library/postgres:13
+    image: postgres:latest
     container_name: postgres
     restart: on-failure
     environment:
@@ -14,7 +14,41 @@ services:
     ports:
       - "5432:5432"
 
-# TODO добавить сервисы
+  gateway-service:
+    image: xom4ik/rsoi-gateway-service:latest
+    container_name: rsoi_gateway-service
+    restart: on-failure
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+
+  reservation-service:
+    image: xom4ik/rsoi-reservation-service:latest
+    container_name: reservation-service
+    restart: on-failure
+    depends_on:
+      - database
+    ports:
+      - "8070:8070"
+
+  library-service:
+    image: xom4ik/rsoi-library-service:latest
+    container_name: library-service
+    restart: on-failure
+    depends_on:
+      - database
+    ports:
+      - "8060:8060"
+
+  rating-service:
+    image: xom4ik/rsoi-rating-service:latest
+    container_name: rating-service
+    restart: on-failure
+    depends_on:
+      - database
+    ports:
+      - "8050:8050"
 
 volumes:
   db-data:

@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\LibraryService.Core\LibraryService.Core.csproj" />
+      <ProjectReference Include="..\LibraryService.Dto.Http\LibraryService.Dto.Http.csproj" />
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\LibraryService.Core\LibraryService.Core.csproj" />
+      <ProjectReference Include="..\LibraryService.Database.Context\LibraryService.Database.Context.csproj" />
+      <ProjectReference Include="..\LibraryService.Database.Models\LibraryService.Database.Models.csproj" />
+    </ItemGroup>
+
+</Project>
