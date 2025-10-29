@@ -4,6 +4,7 @@ using GatewayService.Dto.Http;
 using GatewayService.Dto.Http.Converters;
 using GatewayService.Dto.Http.Converters.Enums;
 using GatewayService.Server.Clients;
+using LibraryService.Dto.Http.Models;
 using Microsoft.AspNetCore.Mvc;
 using RatingService.Dto.Http;
 using ReservationService.Dto.Http.Models;
@@ -42,30 +43,18 @@ public class ReservationController : ControllerBase
         try
         {
             var userReservations = await _reservationServiceRequestClient.GetReservationsAsync(userName);
-            
+        
             if (userReservations.Count == 0)
                 return Ok(new List<BookReservationResponse>());
-            
+
             var bookIds = userReservations.Select(r => r.BookId).ToList();
-            var ids = string.Join(",", bookIds);
-
-            var result = await _libraryServiceRequestClient.GetBooksByIds(ids);
-
-            var responses = new List<BookReservationResponse>();
-            foreach (var reservation in userReservations)
-            {
-                var book = result.First(b => b.LibraryBook.BookUid == reservation.BookId);
-                
-                var response = new BookReservationResponse(reservation.ReservationId,
-                    ReservationStatusConverter.Convert(reservation.Status),
-                    reservation.StartDate,
-                    reservation.TillDate,
-                    BookConverter.ConvertToBookInfo(book.LibraryBook),
-                    LibraryConverter.Convert(book.Library));
-                
-                responses.Add(response);
-            }
-
+            var booksWithLibraries = await TryGetBookWithLibraryByIds(bookIds);
+            var bookLookup = booksWithLibraries.ToDictionary(b => b.LibraryBook.BookUid);
+        
+            var responses = userReservations
+                .Select(reservation => MapToBookReservationResponse(reservation, bookLookup))
+                .ToList();
+        
             return Ok(responses);
         }
         catch (Exception e)
@@ -173,6 +162,48 @@ public class ReservationController : ControllerBase
         {
             _logger.LogError(e, "Error in method {Method}", nameof(ReturnBook));
             return StatusCode(500, new ErrorResponse("Неожиданная ошибка на стороне сервера."));
+        }
+    }
+    
+    private BookReservationResponse MapToBookReservationResponse(Reservation reservation, 
+        Dictionary<Guid, BookWithLibrary> bookLookup)
+    {
+        BookInfo bookInfo;
+        LibraryResponse libraryResponse;
+    
+        if (bookLookup.TryGetValue(reservation.BookId, out var bookWithLibrary))
+        {
+            bookInfo = BookConverter.ConvertToBookInfo(bookWithLibrary.LibraryBook);
+            libraryResponse = LibraryConverter.Convert(bookWithLibrary.Library);
+        }
+        else
+        {
+            bookInfo = new BookInfo(reservation.BookId);
+            libraryResponse = new LibraryResponse(reservation.LibraryId);
+        }
+    
+        return new BookReservationResponse(
+            reservation.ReservationId,
+            ReservationStatusConverter.Convert(reservation.Status),
+            reservation.StartDate,
+            reservation.TillDate,
+            bookInfo,
+            libraryResponse);
+    }
+
+    private async Task<List<BookWithLibrary>> TryGetBookWithLibraryByIds(List<Guid> bookIds)
+    {
+        try
+        {
+            var ids = string.Join(",", bookIds);
+
+            return await _libraryServiceRequestClient.GetBooksByIds(ids);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error while getting books by ids");
+            
+            return new List<BookWithLibrary>();
         }
     }
 }

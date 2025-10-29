@@ -19,21 +19,18 @@ public class BookInfo
     /// <summary>
     /// Название книги
     /// </summary>
-    [Required]
     [DataMember(Name = "name")]
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>
     /// Автор
     /// </summary>
-    [Required]
     [DataMember(Name = "author")]
     public string? Author { get; set; }
 
     /// <summary>
     /// Жанр
     /// </summary>
-    [Required]
     [DataMember(Name = "genre")]
     public string? Genre { get; set; }
 
@@ -43,5 +40,10 @@ public class BookInfo
         Name = name;
         Author = author;
         Genre = genre;
+    }
+
+    public BookInfo(Guid bookUid)
+    {
+        BookUid = bookUid;
     }
 }

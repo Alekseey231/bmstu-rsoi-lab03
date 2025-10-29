@@ -21,21 +21,21 @@ public class LibraryResponse
     /// </summary>
     [Required]
     [DataMember(Name = "name")]
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>
     /// Адрес библиотеки
     /// </summary>
     [Required]
     [DataMember(Name = "address")]
-    public string Address { get; set; }
+    public string? Address { get; set; }
 
     /// <summary>
     /// Город, в котором находится библиотека
     /// </summary>
     [Required]
     [DataMember(Name = "city")]
-    public string City { get; set; }
+    public string? City { get; set; }
 
     public LibraryResponse(Guid libraryUid, string name, string address, string city)
     {
@@ -43,5 +43,10 @@ public class LibraryResponse
         Name = name;
         Address = address;
         City = city;
+    }
+
+    public LibraryResponse(Guid libraryUid)
+    {
+        LibraryUid = libraryUid;
     }
 }
