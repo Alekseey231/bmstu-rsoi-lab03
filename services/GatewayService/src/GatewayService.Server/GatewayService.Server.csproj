@@ -32,6 +32,7 @@
       <ProjectReference Include="..\Dto\GatewayService.Dto.Http.Converters\GatewayService.Dto.Http.Converters.csproj" />
       <ProjectReference Include="..\Dto\GatewayService.Dto.Http\GatewayService.Dto.Http.csproj" />
       <ProjectReference Include="..\GatewayService.Core\GatewayService.Core.csproj" />
+      <ProjectReference Include="..\Services\GatewayService.Services.CircuitBreaker\GatewayService.Services.CircuitBreaker.csproj" />
     </ItemGroup>
 
 </Project>

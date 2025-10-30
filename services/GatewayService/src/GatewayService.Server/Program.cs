@@ -7,14 +7,16 @@ public class Program
 {
     private const string _appsettingsFilename = "appsettings.json";
 
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         Log.Logger = SerilogLoggerFactory.CreateProductionOrDefaultConfiguration(_appsettingsFilename);
         try
         {
-            CreateHostBuilder(args)
-                .Build()
-                .Run();
+            var host = CreateHostBuilder(args)
+                .Build();
+                
+            await host.RunAsync();
+                
         }
         catch (Exception e)
         {
@@ -22,7 +24,7 @@ public class Program
         }
         finally
         {
-            Log.CloseAndFlush();
+            await Log.CloseAndFlushAsync();
         }
     }
 
