@@ -1,9 +1,12 @@
 using System.ComponentModel.DataAnnotations;
+using System.Net;
+using System.Net.Sockets;
 using GatewayService.Clients;
 using GatewayService.Dto.Http;
 using GatewayService.Dto.Http.Converters;
 using GatewayService.Services.CircuitBreaker.Exceptions;
 using Microsoft.AspNetCore.Mvc;
+using Refit;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace GatewayService.Server.Controllers;
@@ -30,14 +33,29 @@ public class RatingController : ControllerBase
         try
         {
             var rating = await _ratingServiceRequestClient.GetRatingAsync(userName);
-            
+
             var dtoRating = RatingConverter.Convert(rating);
-            
+
             return Ok(dtoRating);
         }
         catch (BrokenCircuitException e)
         {
             _logger.LogError(e, "Bonus Service unavailable");
+
+            return StatusCode(503, new ErrorResponse("Bonus Service unavailable."));
+        }
+        catch (ApiException e) when (e.StatusCode == HttpStatusCode.ServiceUnavailable)
+        {
+            _logger.LogError(e, "Bonus Service unavailable");
+
+            return StatusCode(503, new ErrorResponse("Bonus Service unavailable."));
+        }
+        catch (HttpRequestException ex) when (ex.InnerException is SocketException
+                                              {
+                                                  SocketErrorCode: SocketError.ConnectionRefused
+                                              })
+        {
+            _logger.LogError(ex, "Bonus Service unavailable");
             
             return StatusCode(503, new ErrorResponse("Bonus Service unavailable."));
         }
