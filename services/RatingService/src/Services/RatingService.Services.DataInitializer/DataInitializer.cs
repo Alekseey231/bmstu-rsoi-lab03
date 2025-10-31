@@ -1,4 +1,5 @@
-﻿using RatingService.Core.Interfaces;
+﻿using Microsoft.EntityFrameworkCore;
+using RatingService.Core.Interfaces;
 using RatingService.Database.Context;
 using RatingService.Database.Models;
 
@@ -15,9 +16,17 @@ public class DataInitializer : IDataInitializer
     
     public async Task InitializeAsync()
     {
-        var rating = new Rating("Test Max", 75);
+        try
+        {
+            var rating = new Rating("Test Max", 75);
         
-        await _context.Rating.AddAsync(rating);
-        await _context.SaveChangesAsync();
+            await _context.Rating.AddAsync(rating);
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Ignored
+        }
+
     }
  }
