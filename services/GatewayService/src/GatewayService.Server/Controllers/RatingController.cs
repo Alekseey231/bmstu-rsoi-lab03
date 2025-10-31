@@ -50,10 +50,7 @@ public class RatingController : ControllerBase
 
             return StatusCode(503, new ErrorResponse("Bonus Service unavailable."));
         }
-        catch (HttpRequestException ex) when (ex.InnerException is SocketException
-                                              {
-                                                  SocketErrorCode: SocketError.ConnectionRefused
-                                              })
+        catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Bonus Service unavailable");
             
