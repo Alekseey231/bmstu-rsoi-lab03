@@ -42,19 +42,19 @@ public class RatingController : ControllerBase
         {
             _logger.LogError(e, "Bonus Service unavailable");
 
-            return StatusCode(503, new ErrorResponse("Bonus Service unavailable."));
+            return StatusCode(503, new ErrorResponse("Bonus Service unavailable"));
         }
         catch (ApiException e) when (e.StatusCode == HttpStatusCode.ServiceUnavailable)
         {
             _logger.LogError(e, "Bonus Service unavailable");
 
-            return StatusCode(503, new ErrorResponse("Bonus Service unavailable."));
+            return StatusCode(503, new ErrorResponse("Bonus Service unavailable"));
         }
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Bonus Service unavailable");
             
-            return StatusCode(503, new ErrorResponse("Bonus Service unavailable."));
+            return StatusCode(503, new ErrorResponse("Bonus Service unavailable"));
         }
         catch (Exception e)
         {
