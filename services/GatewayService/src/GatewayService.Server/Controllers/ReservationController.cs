@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Net;
 using GatewayService.Clients;
 using GatewayService.Core.Exceptions;
 using GatewayService.Core.Interfaces;
@@ -11,6 +12,8 @@ using GatewayService.Services.CircuitBreaker.Exceptions;
 using LibraryService.Dto.Http.Models;
 using Microsoft.AspNetCore.Mvc;
 using RatingService.Dto.Http;
+using RatingService.Dto.Http.Models;
+using Refit;
 using ReservationService.Dto.Http.Models;
 using Swashbuckle.AspNetCore.Annotations;
 using ErrorResponse = GatewayService.Dto.Http.ErrorResponse;
@@ -95,8 +98,26 @@ public class ReservationController : ControllerBase
             
             var userReservations = await _reservationServiceRequestClient.GetReservationsAsync(userName,
                     ReservationServiceReservationStatus.Rented);
+
+            //TODO: костыль, вынести на отдельный уровень.
+            Rating currentRating;
+            try
+            {
+                currentRating = await _ratingServiceRequestClient.GetRatingAsync(userName);
+            }
+            catch (ApiException e) when (e.StatusCode == HttpStatusCode.ServiceUnavailable)
+            {
+                _logger.LogError(e, "Bonus Service unavailable");
+
+                return StatusCode(503, new ErrorResponse("Bonus Service unavailable"));
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "Bonus Service unavailable");
             
-            var currentRating = await _ratingServiceRequestClient.GetRatingAsync(userName);
+                return StatusCode(503, new ErrorResponse("Bonus Service unavailable"));
+            }
+
 
             if (userReservations.Count >= currentRating.Stars)
                 throw new MaxBooksLimitExceededException($"Count took books limit exceeded for user {userName}. Current rating {currentRating.Stars}.");
