@@ -1,5 +1,7 @@
 using System.Reflection;
 using GatewayService.Server.Extensions;
+using GatewayService.Services.RequestsProcessingBackgroundService.Extensions;
+using GatewayService.Services.RequestsQueue.Extensions;
 using Microsoft.OpenApi.Models;
 
 namespace GatewayService.Server;
@@ -15,6 +17,9 @@ public class Startup
 
     public void ConfigureServices(IServiceCollection services)
     {
+        services.AddRequestsBackgroundServices();
+        services.AddRequestsQueues();
+        
         services.AddRefitClients(Configuration);
         services.AddControllers().AddNewtonsoftJson();
         

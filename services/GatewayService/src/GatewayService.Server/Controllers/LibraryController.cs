@@ -1,7 +1,8 @@
 using System.ComponentModel.DataAnnotations;
+using GatewayService.Clients;
 using GatewayService.Dto.Http;
 using GatewayService.Dto.Http.Converters;
-using GatewayService.Server.Clients;
+using GatewayService.Services.CircuitBreaker.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -31,10 +32,16 @@ public class LibraryController : ControllerBase
         try
         {
             var libraries = await _libraryServiceRequestClient.GetLibrariesAsync(city, page, size);
-            
+
             var dtoLibraries = LibraryResponseConverter.Convert(libraries);
-            
+
             return Ok(dtoLibraries);
+        }
+        catch (BrokenCircuitException e)
+        {
+            _logger.LogError(e, "Library service unavailable");
+            
+            return StatusCode(503, new ErrorResponse("Library Service unavailable."));
         }
         catch (Exception e)
         {
@@ -64,9 +71,16 @@ public class LibraryController : ControllerBase
             
             return Ok(dtoBooks);
         }
+        catch (BrokenCircuitException e)
+        {
+            _logger.LogError(e, "Library service unavailable");
+            
+            return StatusCode(503, new ErrorResponse("Library Service unavailable."));
+        }
         catch (Exception e)
         {
             _logger.LogError(e, "Error in method {Method}", nameof(GetLibraryBooks));
+            
             return StatusCode(500, new ErrorResponse("Неожиданная ошибка на стороне сервера."));
         }
     }

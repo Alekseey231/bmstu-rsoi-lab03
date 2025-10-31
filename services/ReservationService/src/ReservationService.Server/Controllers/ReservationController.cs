@@ -76,6 +76,26 @@ public class ReservationController : ControllerBase
         }
     }
     
+    [HttpDelete("{reservationId:guid}")]
+    [SwaggerOperation("Метод для удаления резервирования книги.", "Метод для удаления резервирования книги.")]
+    [SwaggerResponse(statusCode: 200, description: "Резервация книги успешно снята.")]
+    [SwaggerResponse(statusCode: 500, type: typeof(ErrorResponse), description: "Ошибка на стороне сервера.")]
+    public async Task<IActionResult> DeleteReservation([Required] [FromRoute] Guid reservationId)
+    {
+        try
+        {
+            await _reservationService.DeleteReservationAsync(reservationId);
+            
+            return Ok();
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error in method {Method}", nameof(UpdateReservation));
+            
+            return StatusCode(500, new ErrorResponse("Неожиданная ошибка на стороне сервера."));
+        }
+    }
+    
     [HttpGet]
     [SwaggerOperation("Метод для получения резервирований книг.", "Метод для получения резервирований книг.")]
     [SwaggerResponse(statusCode: 200, type: typeof(List<Reservation>), description: "Резервации успешно получены.")]

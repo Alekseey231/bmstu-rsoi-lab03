@@ -81,4 +81,15 @@ public class ReservationRepository : IReservationRepository
         
         return reservations.ConvertAll(ReservationConverter.Convert);
     }
+
+    public Task DeleteReservationAsync(Guid reservationId)
+    {
+        var reservation = _context.Reservation.FirstOrDefault(r => r.ReservationId == reservationId);
+        if (reservation is null)
+            throw new ReservationNotFoundException();
+        
+        _context.Reservation.Remove(reservation);
+        
+        return _context.SaveChangesAsync();
+    }
 }

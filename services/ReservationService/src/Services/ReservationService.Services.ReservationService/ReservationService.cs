@@ -76,4 +76,13 @@ public class ReservationService : IReservationService
         
         return reservation;
     }
+
+    public async Task DeleteReservationAsync(Guid reservationId)
+    {
+        _logger.LogDebug("Deleting reservation {ReservationId}", reservationId);
+        
+        await _reservationRepository.DeleteReservationAsync(reservationId);
+        
+        _logger.LogInformation("Reservation {ReservationId} deleted", reservationId);
+    }
 }

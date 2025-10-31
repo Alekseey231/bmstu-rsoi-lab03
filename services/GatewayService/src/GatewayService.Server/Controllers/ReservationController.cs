@@ -1,9 +1,13 @@
 using System.ComponentModel.DataAnnotations;
+using GatewayService.Clients;
 using GatewayService.Core.Exceptions;
+using GatewayService.Core.Interfaces;
+using GatewayService.Core.Models;
+using GatewayService.Core.Models.Enums;
 using GatewayService.Dto.Http;
 using GatewayService.Dto.Http.Converters;
 using GatewayService.Dto.Http.Converters.Enums;
-using GatewayService.Server.Clients;
+using GatewayService.Services.CircuitBreaker.Exceptions;
 using LibraryService.Dto.Http.Models;
 using Microsoft.AspNetCore.Mvc;
 using RatingService.Dto.Http;
@@ -11,6 +15,7 @@ using ReservationService.Dto.Http.Models;
 using Swashbuckle.AspNetCore.Annotations;
 using ErrorResponse = GatewayService.Dto.Http.ErrorResponse;
 using ReservationServiceReservationStatus = ReservationService.Dto.Http.Models.Enums.ReservationStatus;
+using ReturnBookRequest = GatewayService.Dto.Http.ReturnBookRequest;
 
 namespace GatewayService.Server.Controllers;
 
@@ -21,13 +26,19 @@ public class ReservationController : ControllerBase
     private readonly IReservationServiceClient _reservationServiceRequestClient;
     private readonly IRatingServiceClient _ratingServiceRequestClient;
     private readonly ILibraryServiceClient _libraryServiceRequestClient;
+    private readonly ILibraryServiceRequestsQueue _libraryServiceRequestsQueue;
+    private readonly IRatingServiceRequestsQueue _ratingServiceRequestsQueue;
     private readonly ILogger<ReservationController> _logger;
 
     public ReservationController(IReservationServiceClient reservationServiceRequestClient,
+        ILibraryServiceRequestsQueue libraryServiceRequestsQueue,
+        IRatingServiceRequestsQueue ratingServiceRequestsQueue,
         IRatingServiceClient ratingServiceRequestClient,
         ILibraryServiceClient libraryServiceRequestClient,
         ILogger<ReservationController> logger)
     {
+        _libraryServiceRequestsQueue = libraryServiceRequestsQueue;
+        _ratingServiceRequestsQueue = ratingServiceRequestsQueue;
         _ratingServiceRequestClient = ratingServiceRequestClient;
         _reservationServiceRequestClient = reservationServiceRequestClient;
         _libraryServiceRequestClient = libraryServiceRequestClient;
@@ -57,6 +68,12 @@ public class ReservationController : ControllerBase
         
             return Ok(responses);
         }
+        catch (BrokenCircuitException e)
+        {
+            _logger.LogError(e, "Reservation service unavailable");
+            
+            return StatusCode(503, new ErrorResponse("Reservation service unavailable."));
+        }
         catch (Exception e)
         {
             _logger.LogError(e, "Error in method {Method}", nameof(GetReservations));
@@ -83,7 +100,7 @@ public class ReservationController : ControllerBase
 
             if (userReservations.Count >= currentRating.Stars)
                 throw new MaxBooksLimitExceededException($"Count took books limit exceeded for user {userName}. Current rating {currentRating.Stars}.");
-
+            
             var newReservation = await _reservationServiceRequestClient.CreateReservationAsync(new Reservation(
                 Guid.NewGuid(),
                 userName,
@@ -93,21 +110,36 @@ public class ReservationController : ControllerBase
                 DateOnly.FromDateTime(DateTime.Now),
                 request.TillDate));
 
-            var book = await _libraryServiceRequestClient.CheckOutBookAsync(request.LibraryUid, request.BookUid);
+            try
+            {
+                var book = await _libraryServiceRequestClient.CheckOutBookAsync(request.LibraryUid, request.BookUid);
             
-            var dtoBook = BookConverter.ConvertToBookInfo(book);
-            var dtoRating = RatingConverter.Convert(currentRating);
-            var dtoLibrary = LibraryConverter.Convert(bookWithLibrary.Library);
+                var dtoBook = BookConverter.ConvertToBookInfo(book);
+                var dtoRating = RatingConverter.Convert(currentRating);
+                var dtoLibrary = LibraryConverter.Convert(bookWithLibrary.Library);
             
-            var result = new TakeBookResponse(newReservation.ReservationId,
-                ReservationStatusConverter.Convert(newReservation.Status),
-                newReservation.StartDate,
-                newReservation.TillDate,
-                dtoBook,
-                dtoLibrary,
-                dtoRating);
+                var result = new TakeBookResponse(newReservation.ReservationId,
+                    ReservationStatusConverter.Convert(newReservation.Status),
+                    newReservation.StartDate,
+                    newReservation.TillDate,
+                    dtoBook,
+                    dtoLibrary,
+                    dtoRating);
                 
-            return Ok(result);
+                return Ok(result);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e,
+                    "Error while checking out book {BookId} in library {LibraryId} for user {UserId}",
+                    request.BookUid, 
+                    request.LibraryUid,
+                    userName);
+                
+                await _reservationServiceRequestClient.DeleteReservationAsync(newReservation.ReservationId);
+                
+                return StatusCode(503, new ErrorResponse("Library service unavailable."));
+            }
         }
         catch (MaxBooksLimitExceededException e)
         {
@@ -135,26 +167,64 @@ public class ReservationController : ControllerBase
     {
         try
         {
+            
+            var penalty = 0;
+            
             var closedReservation = await _reservationServiceRequestClient.UpdateReservationAsync(reservationUid,
                 new UpdateReservationRequest(request.Date));
             
-            var checkInBookResponse = await _libraryServiceRequestClient.CheckInBookAsync(closedReservation.LibraryId, 
-                closedReservation.BookId,
-                BookConditionConverter.Convert(request.Condition));
-
-            var penalty = 0;
-            
-            if (checkInBookResponse.NewBook.Condition != checkInBookResponse.OldBook.Condition)
-                penalty += 10;
-            
             if (closedReservation.Status == ReservationServiceReservationStatus.Expired)
                 penalty += 10;
+
+            try
+            {
+                var checkInBookResponse = await _libraryServiceRequestClient.CheckInBookAsync(closedReservation.LibraryId, 
+                    closedReservation.BookId,
+                    BookConditionConverter.Convert(request.Condition));
             
-            var rating = await _ratingServiceRequestClient.GetRatingAsync(userName);
-            
-            var newCountStars = penalty == 0 ? rating.Stars + 1 : rating.Stars - penalty;
-            
-            await _ratingServiceRequestClient.UpdateRatingAsync(userName, new UpdateRatingRequest(newCountStars));
+                if (checkInBookResponse.NewBook.Condition != checkInBookResponse.OldBook.Condition)
+                    penalty += 10;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e,
+                    "Error while check in book {BookId} in library {LibraryId} for user {User}. Enqueue...",
+                    closedReservation.BookId,
+                    closedReservation.LibraryId,
+                    userName);
+                
+                await _libraryServiceRequestsQueue.EnqueueAsync(new Core.Models.ReturnBookRequest(ReturnBookRequestState.LibraryRequestFailed,
+                    penalty,
+                    new RatingRequest(userName),
+                    new LibraryRequest(closedReservation.LibraryId,
+                        closedReservation.BookId,
+                        BookConditionConverter.ConvertToCore(request.Condition))));
+                
+                return NoContent();
+            }
+
+            try
+            {
+                var rating = await _ratingServiceRequestClient.GetRatingAsync(userName);
+                
+                var newCountStars = penalty == 0 ? rating.Stars + 1 : rating.Stars - penalty;
+                
+                await _ratingServiceRequestClient.UpdateRatingAsync(userName, new UpdateRatingRequest(newCountStars));
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e,
+                    "Error while update rating after check in {BookId} in library {LibraryId} for user {User}. Enqueue...",
+                    closedReservation.BookId,
+                    closedReservation.LibraryId,
+                    userName);
+                
+                await _libraryServiceRequestsQueue.EnqueueAsync(new Core.Models.ReturnBookRequest(ReturnBookRequestState.RatingRequestFailed,
+                    penalty,
+                    new RatingRequest(userName)));
+                
+                return NoContent();
+            }
             
             return NoContent();
         }

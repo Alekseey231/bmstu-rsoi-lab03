@@ -3,7 +3,7 @@ using LibraryService.Dto.Http.Models;
 using LibraryService.Dto.Http.Models.Enums;
 using Refit;
 
-namespace GatewayService.Server.Clients;
+namespace GatewayService.Clients;
 
 public interface ILibraryServiceClient
 {

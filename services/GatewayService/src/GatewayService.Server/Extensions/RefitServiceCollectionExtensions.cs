@@ -1,4 +1,4 @@
-using GatewayService.Server.Clients;
+using GatewayService.Clients;
 using GatewayService.Server.Configurations;
 using GatewayService.Server.Handlers;
 using GatewayService.Services.CircuitBreaker;

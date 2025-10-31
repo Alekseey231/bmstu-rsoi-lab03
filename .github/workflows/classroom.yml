@@ -111,9 +111,9 @@ jobs:
         timeout-minutes: 5
         run: ./scripts/test-script.sh
         env:
-          VARIANT: <variant>
-          SERVICE_NAME: <your service name>
-          PORT_NUMBER: <port number>
+          VARIANT: v4
+          SERVICE_NAME: rating-service
+          PORT_NUMBER: 8050
 
       - name: Show logs 
         if: always()

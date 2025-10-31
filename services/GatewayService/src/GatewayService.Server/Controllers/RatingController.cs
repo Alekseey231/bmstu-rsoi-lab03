@@ -1,7 +1,8 @@
 using System.ComponentModel.DataAnnotations;
+using GatewayService.Clients;
 using GatewayService.Dto.Http;
 using GatewayService.Dto.Http.Converters;
-using GatewayService.Server.Clients;
+using GatewayService.Services.CircuitBreaker.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -33,6 +34,12 @@ public class RatingController : ControllerBase
             var dtoRating = RatingConverter.Convert(rating);
             
             return Ok(dtoRating);
+        }
+        catch (BrokenCircuitException e)
+        {
+            _logger.LogError(e, "Bonus Service unavailable");
+            
+            return StatusCode(503, new ErrorResponse("Bonus Service unavailable."));
         }
         catch (Exception e)
         {

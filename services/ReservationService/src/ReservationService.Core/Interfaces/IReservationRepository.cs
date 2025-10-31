@@ -21,4 +21,6 @@ public interface IReservationRepository
     public Task<Reservation> GetReservationByIdAsync(Guid reservationId);
     
     public Task<List<Reservation>> GetReservationByUserNameAsync(string userName, ReservationStatus? status);
+    
+    public Task DeleteReservationAsync(Guid reservationId);
 }

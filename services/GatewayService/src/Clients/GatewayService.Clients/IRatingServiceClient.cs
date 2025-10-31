@@ -2,7 +2,7 @@ using RatingService.Dto.Http;
 using RatingService.Dto.Http.Models;
 using Refit;
 
-namespace GatewayService.Server.Clients;
+namespace GatewayService.Clients;
 
 public interface IRatingServiceClient
 {
