@@ -240,7 +240,7 @@ public class ReservationController : ControllerBase
                     closedReservation.LibraryId,
                     userName);
                 
-                await _libraryServiceRequestsQueue.EnqueueAsync(new Core.Models.ReturnBookRequest(ReturnBookRequestState.RatingRequestFailed,
+                await _ratingServiceRequestsQueue.EnqueueAsync(new Core.Models.ReturnBookRequest(ReturnBookRequestState.RatingRequestFailed,
                     penalty,
                     new RatingRequest(userName)));
                 
